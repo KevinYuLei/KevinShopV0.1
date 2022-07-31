@@ -64,9 +64,9 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Stair\IStair.cs" />
+    <Compile Include="Stair\BasicClass.cs" />
+    <Compile Include="Stair\PrimaryInterface.cs" />
     <Compile Include="Stair\SingleFlightStair.cs" />
-    <Compile Include="Stair\Stair.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
