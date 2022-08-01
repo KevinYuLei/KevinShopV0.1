@@ -70,7 +70,6 @@ namespace GhSingleStraightFlightStair
             pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item, "Split row");
 
             pManager.AddNumberParameter("HandrailRadius", "栏杆半径/半边长", "The radius/half-length of handrail", GH_ParamAccess.item, 25);
-            pManager.AddIntegerParameter("HandrailCountPerFlight", "每跑栏杆半径", "The count of handrail per flight", GH_ParamAccess.item, 10);
             pManager.AddBooleanParameter("IsCircleHandrail", "是否圆管栏杆", "Whether to create circle handrails or not", GH_ParamAccess.item, true);
         }
 
@@ -118,7 +117,6 @@ namespace GhSingleStraightFlightStair
             HandrailType handrailType = HandrailType.Entirety;
 
             double handrailRadius = double.NaN;
-            int handrailCountPerFlight = int.MinValue;
             bool isCircleHandrail = true;
 
             //Initialize arguments
@@ -161,7 +159,6 @@ namespace GhSingleStraightFlightStair
             }
 
             DA.GetData("HandrailRadius", ref handrailRadius);
-            DA.GetData("HandrailCountPerFlight", ref handrailCountPerFlight);
             DA.GetData("IsCircleHandrail", ref isCircleHandrail);
 
             SingleLinearFlightStair singleLinearFlightStair = new SingleLinearFlightStair
@@ -173,7 +170,7 @@ namespace GhSingleStraightFlightStair
                 stairLandingWidth,
                  stringerWidth, stringerHeight,
                 handrailHeight, handrailMargin,handrailType,
-                handrailRadius, handrailCountPerFlight, isCircleHandrail
+                handrailRadius, isCircleHandrail
                 );
             singleLinearFlightStair.CreateStair();
 

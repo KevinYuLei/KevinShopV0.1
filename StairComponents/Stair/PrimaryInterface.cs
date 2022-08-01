@@ -69,6 +69,7 @@ namespace StairComponents.Stair
 
     internal interface IHandrail
     {
+        double ArmrestDepth { get; }
         double HandrailHeight { get; set; }
         double HandrailMargin { get; set; }
         HandrailType HandrailType { get; set; }
@@ -77,7 +78,6 @@ namespace StairComponents.Stair
     internal interface ISeparatedHandrail
     {
         double HandrailRadius { get; set; }
-        int HandrailCountPerFlight { get; set; }
         bool IsCircleHandrail { get; set; }
     }
 }
