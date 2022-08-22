@@ -89,7 +89,7 @@
   -->
   <PropertyGroup>
     <PostBuildEvent>Copy "$(TargetPath)" "$(TargetDir)$(ProjectName).gha"
-Copy "$(TargetPath)" "C:\Users\Kevin Xie\AppData\Roaming\Grasshopper\Libraries\$(ProjectName).gha"
+Copy "$(TargetPath)" "C:\Users\Kevin_Xie\AppData\Roaming\Grasshopper\Libraries\$(ProjectName).gha"
 Erase "$(TargetPath)"</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>

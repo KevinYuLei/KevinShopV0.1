@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Grasshopper.Kernel.Data;
 using Rhino;
 using Rhino.Geometry;
-using Grasshopper.Kernel;
-using Grasshopper;
-using Rhino.Geometry.Intersect;
-using Grasshopper.Kernel.Data;
+using System;
+using System.Collections.Generic;
 
 namespace StairComponents.Stair
 {
@@ -230,7 +224,6 @@ namespace StairComponents.Stair
             Curve flightSideCurve = CreateFlightSideCurve();
             Brep flightBrep = Surface.CreateExtrusion(flightSideCurve, new Vector3d(FlightLength, 0, 0)).ToBrep().CapPlanarHoles(0.1);
             Flights.Add(flightBrep, new GH_Path(0));
-
         }
         protected virtual void CreateSeparateFlight()
         {
@@ -312,14 +305,23 @@ namespace StairComponents.Stair
 
         protected virtual void CreateEntireHandrail()
         {
-            Curve flightSidePolyCurve = CreateStepPolyCurve();
+            Curve bottomCurve = CreateStepPolyCurve();
             Curve topCurve = CreateHandrailTopCurve();
+            bottomCurve = bottomCurve.Trim(CurveEnd.Both, StepWidth / 2);
+            topCurve = topCurve.Trim(CurveEnd.Both, StepWidth / 2);
 
             Point3d topPt1 = topCurve.PointAtStart;
-            Point3d topPt4 = topCurve.PointAtEnd;
+            Point3d topPt2 = topCurve.PointAtEnd;
+            Point3d bottomPt1 = bottomCurve.PointAtStart;
+            Point3d bottomPt2 = bottomCurve.PointAtEnd;
 
             //创建整体式栏杆（栏板）
-            List<Curve> midSectionCurves = new List<Curve> { flightSidePolyCurve, new Line(flightSidePolyCurve.PointAtStart, topPt1).ToNurbsCurve(), new Line(flightSidePolyCurve.PointAtEnd, topPt4).ToNurbsCurve(), topCurve };
+            List<Curve> midSectionCurves = new List<Curve>
+            {
+                bottomCurve,
+                new Line(topPt1,bottomPt1).ToNurbsCurve(),
+                new Line(topPt2,bottomPt2).ToNurbsCurve(),
+                topCurve };
             Curve sectionCurve1 = Curve.JoinCurves(midSectionCurves, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance)[0];
             Curve sectionCurve2 = sectionCurve1.DuplicateCurve();
             sectionCurve1.Transform(Transform.Translation(-1 * HandrailRadius, 0, 0));
@@ -338,8 +340,8 @@ namespace StairComponents.Stair
             Brep handrail2 = handrail1.DuplicateBrep();
             handrail2.Transform(Transform.Mirror(mirrorPlane));
 
-            Handrails.Add(handrail1);
-            Handrails.Add(handrail2);
+            Handrails.Add(handrail1,new GH_Path(0,0));
+            Handrails.Add(handrail2,new GH_Path(0,1));
 
             CreateArmrest();
         }
@@ -347,6 +349,10 @@ namespace StairComponents.Stair
         //创建杆件式栏杆
         protected virtual void CreateSeparatedHandrail()
         {
+            //创建镜像平面，以便于后续实体通过镜像创建另一侧的实体
+            Plane mirrorPlane = new Plane(DatumPt, Vector3d.YAxis, Vector3d.ZAxis);
+            mirrorPlane.Transform(Transform.Translation(StairLandingLength / 2, 0, 0));
+
             //创建各踏步沿宽度方向的线，以便于后续根据序号获得中点创建主杆
             List<Curve> stepWidthCurves = new List<Curve>();
             for (int i = 0; i < StepCount; i++)
@@ -365,21 +371,50 @@ namespace StairComponents.Stair
             List<int> indices = new List<int>();
             int indexInterval = (int)Math.Round(mainPartInterval / StepWidth);
             indices.Add(0);
-            for (int i = indexInterval; i < StepCount; i += indexInterval)
+            for (int i = indexInterval; i < StepCount-1; i += indexInterval)
             {
                 indices.Add(i);
             }
             indices.Add(StepCount - 1);
 
-            //创建底部、中部分隔栏杆曲线
-            double topInterval = 80;
-            double bottomInterval = 100;
+            //水平杆件
+
+            //创建顶部扶手
+            CreateArmrest();
+
+            //创建底部、中部分 水平 隔栏杆曲线及其实体杆件
+            double subPipeRadius = HandrailRadius / 2;
+            double radiusOfHorizontalPipe = subPipeRadius + 10;
+            double topInterval = 100;
+            double bottomInterval = 50 + radiusOfHorizontalPipe;
 
             Curve handrailTopCurve = CreateHandrailTopCurve();
             Curve handrailMidCurve = handrailTopCurve.DuplicateCurve();
             Curve handrailBottomCurve = handrailTopCurve.DuplicateCurve();
             handrailMidCurve.Transform(Transform.Translation(0, 0, -1 * topInterval));
             handrailBottomCurve.Transform(Transform.Translation(0, 0, -1*(HandrailHeight - bottomInterval)));
+            handrailMidCurve = handrailMidCurve.Trim(CurveEnd.Both, StepWidth / 2);
+            handrailBottomCurve = handrailBottomCurve.Trim(CurveEnd.Both, StepWidth / 2);
+
+            Brep handrailMidPipe1 = CreateCirclePipeOrNot(handrailMidCurve, radiusOfHorizontalPipe, IsCircleHandrail);
+            Brep handrailBottomPipe1 = CreateCirclePipeOrNot(handrailBottomCurve, radiusOfHorizontalPipe, IsCircleHandrail);
+
+            handrailMidPipe1.Transform(Transform.Translation(HandrailRadius, 0, 0));
+            handrailMidPipe1.Transform(Transform.Translation(HandrailMargin, 0, 0));
+            handrailBottomPipe1.Transform(Transform.Translation(HandrailRadius, 0, 0));
+            handrailBottomPipe1.Transform(Transform.Translation(HandrailMargin, 0, 0));
+
+            Brep handrailMidPipe2 = handrailMidPipe1.DuplicateBrep();
+            Brep handrailBottomPipe2 = handrailBottomPipe1.DuplicateBrep();
+            handrailMidPipe2.Transform(Transform.Mirror(mirrorPlane));
+            handrailBottomPipe2.Transform(Transform.Mirror(mirrorPlane));
+
+            Handrails.Add(handrailMidPipe1, new GH_Path(0,0));
+            Handrails.Add(handrailBottomPipe1,new GH_Path(0,0));
+            Handrails.Add(handrailMidPipe2, new GH_Path(1, 0));
+            Handrails.Add(handrailBottomPipe2, new GH_Path(1, 0));
+
+            //垂直杆件
 
             //创建主杆曲线、实体
             List<Curve> mainPipeCurves = new List<Curve>();
@@ -390,28 +425,32 @@ namespace StairComponents.Stair
                 Point3d startPt = (stepWidthCurves[indices[i]].PointAtStart + stepWidthCurves[indices[i]].PointAtEnd) / 2;
                 Curve unitCurve = new Line(startPt, Vector3d.ZAxis).ToNurbsCurve();
                 Curve mainPipeCurve=unitCurve.Extend(CurveEnd.End, CurveExtensionStyle.Line, new List<GeometryBase> { handrailTopCurve.Duplicate() });
+                //延伸主杆曲线，在扶手倾斜段使得主杆不外漏一部分
+                mainPipeCurve = mainPipeCurve.Extend(CurveEnd.End, ArmrestDepth / 2, CurveExtensionStyle.Line);
                 mainPipeCurves.Add(mainPipeCurve);
 
-                Brep mainPipe1 = Brep.CreatePipe(mainPipeCurve, HandrailRadius, true, PipeCapMode.Flat, true, 0.1, 0.1)[0];
+                Brep mainPipe1 = CreateCirclePipeOrNot(mainPipeCurve, HandrailRadius, IsCircleHandrail);
 
+                //消除半径影响，将栏杆默认紧贴楼梯梯段边缘
                 mainPipe1.Transform(Transform.Translation(HandrailRadius, 0, 0));
+                //完成上方内容后通过边距控制栏杆位置
                 mainPipe1.Transform(Transform.Translation(HandrailMargin, 0, 0));
 
-                Plane mirrorPlane = new Plane(DatumPt, Vector3d.YAxis, Vector3d.ZAxis);
-                mirrorPlane.Transform(Transform.Translation(StairLandingLength / 2, 0, 0));
+                
                 Brep mainPipe2 = mainPipe1.DuplicateBrep();
                 mainPipe2.Transform(Transform.Mirror(mirrorPlane));
 
                 mainPipes1.Add(mainPipe1);
                 mainPipes2.Add(mainPipe2);
             }
-            Handrails.AddRange(mainPipes1, new GH_Path(0));
-            Handrails.AddRange(mainPipes2, new GH_Path(0));
+            Handrails.AddRange(mainPipes1, new GH_Path(0,1));
+            Handrails.AddRange(mainPipes2, new GH_Path(1,1));
 
             //创建次杆曲线、实体
             List<Curve> subPipeCurves = new List<Curve>();
             List<Brep> subPipes1 = new List<Brep>();
             List<Brep> subPipes2 = new List<Brep>();
+            
             for (int i = 0; i < mainPipeCurves.Count-1; i++)
             {
                 double tOfPt;
@@ -420,62 +459,40 @@ namespace StairComponents.Stair
                 int countOfTweenCrvs = ((int)distanceBetweenMainPipeCurves / 110) + 1;
 
                 Curve[] tweenCrvs = Curve.CreateTweenCurves(mainPipeCurves[i], mainPipeCurves[i+1], countOfTweenCrvs, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
-
-                subPipeCurves.AddRange(tweenCrvs);
                 for (int j = 0; j < tweenCrvs.Length; j++)
                 {
-                    Brep subPipe1 = Brep.CreatePipe(tweenCrvs[j], HandrailRadius / 1.5, true, PipeCapMode.Flat, true, 0.1, 0.1)[0];
+                    double minOfCrvDomain = tweenCrvs[j].Domain.Min;
+                    double maxnOfCrvDomain = tweenCrvs[j].Domain.Max;
+                    double t0 = (minOfCrvDomain + maxnOfCrvDomain) * (3.0 / 7);
+                    double t1 = (minOfCrvDomain + maxnOfCrvDomain) * (4.0 / 7);
+                    Point3d pt0 = tweenCrvs[j].PointAt(t0);
+                    Point3d pt1 = tweenCrvs[j].PointAt(t1);
+                    Curve subPipeCrv = new Line(pt0, pt1).ToNurbsCurve();
 
-                    subPipe1.Transform(Transform.Translation(HandrailRadius, 0, 0));
-                    subPipe1.Transform(Transform.Translation(HandrailMargin, 0, 0));
+                    subPipeCrv = subPipeCrv.Extend(CurveEnd.Start, CurveExtensionStyle.Line, new List<GeometryBase> { handrailBottomCurve});
+                    subPipeCrv = subPipeCrv.Extend(CurveEnd.End, CurveExtensionStyle.Line, new List<GeometryBase> { handrailMidCurve });
 
-                    Plane mirrorPlane = new Plane(DatumPt, Vector3d.YAxis, Vector3d.ZAxis);
-                    mirrorPlane.Transform(Transform.Translation(StairLandingLength / 2, 0, 0));
-                    Brep subPipe2 = subPipe1.DuplicateBrep();
-                    subPipe2.Transform(Transform.Mirror(mirrorPlane));
-
-                    subPipes1.Add(subPipe1);
-                    subPipes2.Add(subPipe2);
+                    subPipeCurves.Add(subPipeCrv);
                 }
             }
-            Handrails.AddRange(subPipes1, new GH_Path(0));
-            Handrails.AddRange(subPipes2, new GH_Path(0));
-
-            CreateArmrest();
-        }
-
-        protected virtual Curve CreateStepPolyCurve()
-        {
-            List<Point3d> stepPts = new List<Point3d>();
-            for (int i = 0; i < StepCount; i++)
+            for (int k = 0; k < subPipeCurves.Count; k++)
             {
-                Point3d pt1 = new Point3d(DatumPt);
-                Point3d pt2 = new Point3d(DatumPt);
-                pt1.Transform(Transform.Translation(0, StepWidth * i, StepHeight * (i + 1)));
-                pt2.Transform(Transform.Translation(0, StepWidth * (i + 1), StepHeight * (i + 1)));
-                stepPts.Add(pt1);
-                stepPts.Add(pt2);
+                Brep subPipe1 = CreateCirclePipeOrNot(subPipeCurves[k], subPipeRadius, IsCircleHandrail);
+
+                subPipe1.Transform(Transform.Translation(HandrailRadius, 0, 0));
+                subPipe1.Transform(Transform.Translation(HandrailMargin, 0, 0));
+
+                Brep subPipe2 = subPipe1.DuplicateBrep();
+                subPipe2.Transform(Transform.Mirror(mirrorPlane));
+
+                subPipes1.Add(subPipe1);
+                subPipes2.Add(subPipe2);
             }
-            Curve flightSidePolyCurve = new Polyline(stepPts).ToNurbsCurve();
-            return flightSidePolyCurve;
+            Handrails.AddRange(subPipes1, new GH_Path(0,1));
+            Handrails.AddRange(subPipes2, new GH_Path(1,1));
         }
 
-        protected virtual Curve CreateHandrailTopCurve()
-        {
-            Curve flightSidePolyCurve = CreateStepPolyCurve();
-            Point3d topPt1 = new Point3d(flightSidePolyCurve.PointAtStart);
-            Point3d topPt2 = new Point3d(flightSidePolyCurve.PointAtStart);
-            Point3d topPt3 = new Point3d(flightSidePolyCurve.PointAtEnd);
-            Point3d topPt4 = new Point3d(flightSidePolyCurve.PointAtEnd);
-            topPt1.Transform(Transform.Translation(0, 0, HandrailHeight));
-            topPt2.Transform(Transform.Translation(0, StepWidth, HandrailHeight));
-            topPt3.Transform(Transform.Translation(0, -1 * StepWidth, HandrailHeight));
-            topPt4.Transform(Transform.Translation(0, 0, HandrailHeight));
-
-            Curve topCurve = new Polyline(new List<Point3d> { topPt1, topPt2, topPt3, topPt4 }).ToNurbsCurve();
-            return topCurve;
-        }
-
+        //创建扶手
         protected virtual void CreateArmrest()
         {
             double extendLength = 50;
@@ -508,8 +525,61 @@ namespace StairComponents.Stair
             Brep armrest2 = armrest1.DuplicateBrep();
             armrest2.Transform(Transform.Mirror(mirrorPlane));
 
-            Handrails.Add(armrest1,new GH_Path(0));
-            Handrails.Add(armrest2,new GH_Path(0));
+            Handrails.Add(armrest1,new GH_Path(0,0));
+            Handrails.Add(armrest2,new GH_Path(1,0));
+        }
+
+        //辅助方法
+        //创建底部沿踏步的折线曲线
+        protected virtual Curve CreateStepPolyCurve()
+        {
+            List<Point3d> stepPts = new List<Point3d>();
+            for (int i = 0; i < StepCount; i++)
+            {
+                Point3d pt1 = new Point3d(DatumPt);
+                Point3d pt2 = new Point3d(DatumPt);
+                pt1.Transform(Transform.Translation(0, StepWidth * i, StepHeight * (i + 1)));
+                pt2.Transform(Transform.Translation(0, StepWidth * (i + 1), StepHeight * (i + 1)));
+                stepPts.Add(pt1);
+                stepPts.Add(pt2);
+            }
+            Curve flightSidePolyCurve = new Polyline(stepPts).ToNurbsCurve();
+            return flightSidePolyCurve;
+        }
+
+        //创建顶部有长倾斜段的折线曲线
+        protected virtual Curve CreateHandrailTopCurve()
+        {
+            Curve flightSidePolyCurve = CreateStepPolyCurve();
+            Point3d topPt1 = new Point3d(flightSidePolyCurve.PointAtStart);
+            Point3d topPt2 = new Point3d(flightSidePolyCurve.PointAtStart);
+            Point3d topPt3 = new Point3d(flightSidePolyCurve.PointAtEnd);
+            Point3d topPt4 = new Point3d(flightSidePolyCurve.PointAtEnd);
+            topPt1.Transform(Transform.Translation(0, 0, HandrailHeight+StepHeight));
+            topPt2.Transform(Transform.Translation(0, StepWidth, HandrailHeight+StepHeight));
+            topPt3.Transform(Transform.Translation(0, -1 * StepWidth, HandrailHeight));
+            topPt4.Transform(Transform.Translation(0, 0, HandrailHeight));
+
+            Curve topCurve = new Polyline(new List<Point3d> { topPt1, topPt2, topPt3, topPt4 }).ToNurbsCurve();
+            return topCurve;
+        }
+
+        protected virtual Brep CreateCirclePipeOrNot(Curve rail,double radius, bool isCircle)
+        {
+            Brep pipe;
+
+            if(isCircle==true)
+            {
+                pipe= Brep.CreatePipe(rail, radius, true, PipeCapMode.Flat, true, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance, RhinoDoc.ActiveDoc.ModelAngleToleranceRadians)[0];
+            }
+            else
+            {
+                Plane basePlane = new Plane(rail.PointAtStart, rail.TangentAtStart);
+                Curve baseRect = new Rectangle3d(basePlane, new Interval(-radius, radius), new Interval(-radius, radius)).ToNurbsCurve();
+                pipe = Brep.CreateFromSweep(rail, baseRect, false, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance)[0];
+            }
+
+            return pipe;
         }
     }
 }
