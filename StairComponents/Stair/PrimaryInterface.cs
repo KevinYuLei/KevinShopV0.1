@@ -11,7 +11,9 @@ namespace StairComponents.Stair
     public enum FlightType
     {
         Entirety,
-        Separateness
+        Separateness,
+        ObliqueEntirety,
+        ObliqueSeparateness,
     }
 
     public enum HandrailType

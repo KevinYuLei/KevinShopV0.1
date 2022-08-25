@@ -34,7 +34,6 @@ namespace GhSingleStraightFlightStair
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddPointParameter("DatumPt", "基准点", "The datum point of the single straight flight stair", GH_ParamAccess.item, Point3d.Origin);
-            pManager.AddIntegerParameter("FloorCount", "层数", "The count of floor", GH_ParamAccess.item, 1);
 
             pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item, "Split row");
 
@@ -45,7 +44,7 @@ namespace GhSingleStraightFlightStair
             pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item, "Split row");
 
             pManager.AddNumberParameter("FlightLength", "梯段面宽", "The length of Flight", GH_ParamAccess.item, 1200);
-            pManager.AddIntegerParameter("FlightType", "梯段类型", "The type of flight. 0 = Entirety, 1 = Separateness", GH_ParamAccess.item, 0);
+            pManager.AddIntegerParameter("FlightType", "梯段类型", "The type of flight. 0 = Entirety, 1 = Separateness, 2 = ObliqueEntirety, 3 = ObliqueSeparateness, ", GH_ParamAccess.item, 0);
 
             pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item, "Split row");
 
@@ -78,9 +77,17 @@ namespace GhSingleStraightFlightStair
         /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
+            //index = 0
+            pManager.AddNumberParameter("Height", "高度", "Height", GH_ParamAccess.item);
+            //index = 1
+            pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item);
+            //index = 2
             pManager.AddBrepParameter("Flights", "梯段", "Flights", GH_ParamAccess.tree);
+            //index = 3
             pManager.AddBrepParameter("StairLandings", "休息平台", "StairLandings", GH_ParamAccess.tree);
+            //index = 4
             pManager.AddBrepParameter("Stingers", "梯梁", "Stingers", GH_ParamAccess.tree);
+            //index = 5
             pManager.AddBrepParameter("Handrails", "栏杆", "Handrails", GH_ParamAccess.tree);
         }
 
@@ -93,7 +100,6 @@ namespace GhSingleStraightFlightStair
         {
             //Create arguments
             Point3d datumPt = new Point3d();
-            int floorCount = int.MinValue;
 
             int stepCount = int.MinValue;
             double stepWidth = double.NaN;
@@ -121,7 +127,6 @@ namespace GhSingleStraightFlightStair
 
             //Initialize arguments
             DA.GetData("DatumPt", ref datumPt);
-            DA.GetData("FloorCount", ref floorCount);
 
             DA.GetData("StepCount", ref stepCount);
             DA.GetData("StepWidth", ref stepWidth);
@@ -129,14 +134,10 @@ namespace GhSingleStraightFlightStair
 
             DA.GetData("FlightLength", ref flightLength);
             DA.GetData("FlightType", ref flightTypeInt);
-            if (flightTypeInt > 1 || flightTypeInt < 0)
-            {
-                flightType = FlightType.Entirety;
-            }
-            else
-            {
-                flightType = (FlightType)flightTypeInt;
-            }
+            //将int类型转换为 梯段 对应的枚举类型
+            int countOfFlightType = 4;
+            flightTypeInt = flightTypeInt % countOfFlightType;
+            flightType = (FlightType)flightTypeInt;
 
             DA.GetData("StepDepth", ref stepDepth);
             DA.GetData("SideWidth", ref sideWidth);
@@ -149,21 +150,18 @@ namespace GhSingleStraightFlightStair
             DA.GetData("HandrailHeight", ref handrailHeight);
             DA.GetData("HandrailMargin", ref handrailMargin);
             DA.GetData("HandrailType", ref handrailTypeInt);
-            if (handrailTypeInt > 1 || handrailTypeInt < 0)
-            {
-                handrailType = HandrailType.Entirety;
-            }
-            else
-            {
-                handrailType = (HandrailType)handrailTypeInt;
-            }
+            //将int类型转换为 栏杆 对应的枚举类型
+            int countOfHandrailType = 2;
+            handrailTypeInt = handrailTypeInt % countOfHandrailType;
+            handrailType= (HandrailType)handrailTypeInt;
+
 
             DA.GetData("HandrailRadius", ref handrailRadius);
             DA.GetData("IsCircleHandrail", ref isCircleHandrail);
 
             SingleLinearFlightStair singleLinearFlightStair = new SingleLinearFlightStair
                 (
-                datumPt, floorCount,
+                datumPt,
                 stepCount, stepWidth, stepHeight, 
                 flightLength, flightType,
                 stepDepth, sideWidth,
@@ -174,10 +172,11 @@ namespace GhSingleStraightFlightStair
                 );
             singleLinearFlightStair.CreateStair();
 
-            DA.SetDataTree(0, singleLinearFlightStair.Flights);
-            DA.SetDataTree(1, singleLinearFlightStair.StairLandings);
-            DA.SetDataTree(2, singleLinearFlightStair.Stringers);
-            DA.SetDataTree(3, singleLinearFlightStair.Handrails);
+            DA.SetData("Height", singleLinearFlightStair.Height);
+            DA.SetDataTree(2, singleLinearFlightStair.Flights);
+            DA.SetDataTree(3, singleLinearFlightStair.StairLandings);
+            DA.SetDataTree(4, singleLinearFlightStair.Stringers);
+            DA.SetDataTree(5, singleLinearFlightStair.Handrails);
         }
 
         /// <summary>

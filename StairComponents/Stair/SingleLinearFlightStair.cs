@@ -11,8 +11,6 @@ namespace StairComponents.Stair
         #region Input Parameters Properties
         //DatumPt
         public Point3d DatumPt { get; set; }
-        //Floor Count
-        public int FloorCount { get; set; }
 
         //IStep Properties
         protected int stepCount;
@@ -152,14 +150,15 @@ namespace StairComponents.Stair
         //ISeparatedHandrail Properties
         public double HandrailRadius { get; set; }
         public bool IsCircleHandrail { get; set; }
+        #endregion
 
-        //Result Properties
+        #region Result Parameters Properties
         //Number Results
         public double Height
         {
             get
             {
-                return FloorCount * StepCount * StepHeight;
+                return StepCount * StepHeight;
             }
         }
         //Geometry Results has been implemented in Stair Class
@@ -167,7 +166,7 @@ namespace StairComponents.Stair
 
         public SingleLinearFlightStair
             (
-            Point3d datumPt, int floorCount,
+            Point3d datumPt,
             int stepCount, double stepWidth, double stepHeight, 
             double flightLength, FlightType flightType,
              double stepDepth, double sideWidth,
@@ -178,7 +177,6 @@ namespace StairComponents.Stair
             )
         {
             DatumPt = datumPt;
-            FloorCount = floorCount;
 
             StepCount = stepCount;
             StepWidth = stepWidth;
@@ -206,6 +204,7 @@ namespace StairComponents.Stair
             IsCircleHandrail = isCircleHandrail;
         }
 
+        //创建梯段
         protected override void CreateFlights()
         {
             if (FlightType == FlightType.Entirety)
@@ -216,26 +215,79 @@ namespace StairComponents.Stair
             {
                 CreateSeparateFlight();
             }
+            else if (FlightType==FlightType.ObliqueEntirety)
+            {
+                CreateObliqueEntireFlight();
+            }
+            else if(FlightType==FlightType.ObliqueSeparateness)
+            {
+                CreateObliqueSeparateFlight();
+            }
         }
 
-        #region New method ,for create flights,added from this class
+        #region New method for creating flights
+        //创建整体式梯段
         protected virtual void CreateEntireFlight()
         {
             Curve flightSideCurve = CreateFlightSideCurve();
             Brep flightBrep = Surface.CreateExtrusion(flightSideCurve, new Vector3d(FlightLength, 0, 0)).ToBrep().CapPlanarHoles(0.1);
             Flights.Add(flightBrep, new GH_Path(0));
         }
+        //创建片状式梯段
         protected virtual void CreateSeparateFlight()
         {
             Curve flightSideCurve = CreateFlightSideCurve();
-            Brep leftFlightBrep = Surface.CreateExtrusion(flightSideCurve, new Vector3d(SideWidth, 0, 0)).ToBrep().CapPlanarHoles(0.1);
-            Brep rightFlightBrep = leftFlightBrep.DuplicateBrep();
-            rightFlightBrep.Transform(Transform.Translation(FlightLength - SideWidth, 0, 0));
-            Flights.Add(leftFlightBrep,new GH_Path(0));
-            Flights.Add(rightFlightBrep,new GH_Path(0));
+            Brep flightBrep1 = Surface.CreateExtrusion(flightSideCurve, new Vector3d(SideWidth, 0, 0)).ToBrep().CapPlanarHoles(0.1);
+            Brep flightBrep2 = flightBrep1.DuplicateBrep();
+            flightBrep2.Transform(Transform.Translation(FlightLength - SideWidth, 0, 0));
 
-            CreateSeparatedSteps();
+            List<Brep> separatedSteps = CreateSeparatedSteps();
+
+            Flights.Add(flightBrep1,new GH_Path(0));
+            Flights.Add(flightBrep2,new GH_Path(0));
+            Flights.AddRange(separatedSteps, new GH_Path(1));
         }
+        //创建斜边的整体式梯段
+        protected virtual void CreateObliqueEntireFlight()
+        {
+            Curve flightSideCurve = CreateFlightSideCurve();
+            Curve obliqueFlightSideCurve = CreateObliqueFlightSideCurve();
+            Plane mirrorPlane = new Plane(DatumPt, Vector3d.YAxis, Vector3d.ZAxis);
+            mirrorPlane.Transform(Transform.Translation(FlightLength / 2, 0, 0));
+            double lengthOfStep = FlightLength - SideWidth * 2;
+
+            Brep obliqueBrep1 = Surface.CreateExtrusion(obliqueFlightSideCurve, new Vector3d(SideWidth, 0, 0)).ToBrep().CapPlanarHoles(RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
+            Brep obliqueBrep2 = obliqueBrep1.DuplicateBrep();
+            obliqueBrep2.Transform(Transform.Mirror(mirrorPlane));
+
+            Brep stepFlightBrep = Surface.CreateExtrusion(flightSideCurve, new Vector3d(lengthOfStep, 0, 0)).ToBrep().CapPlanarHoles(RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
+            stepFlightBrep.Transform(Transform.Translation(SideWidth, 0, 0));
+
+            Flights.Add(stepFlightBrep, new GH_Path(0));
+            Flights.Add(obliqueBrep1, new GH_Path(0));
+            Flights.Add(obliqueBrep2, new GH_Path(0));
+        }
+        //创建斜边的片状式梯段
+        protected virtual void CreateObliqueSeparateFlight()
+        {
+            Curve obliqueFlightSideCurve=CreateObliqueFlightSideCurve();
+            Plane mirrorPlane = new Plane(DatumPt, Vector3d.YAxis, Vector3d.ZAxis);
+            mirrorPlane.Transform(Transform.Translation(FlightLength / 2, 0, 0));
+
+            Brep obliqueBrep1 = Surface.CreateExtrusion(obliqueFlightSideCurve, new Vector3d(SideWidth, 0, 0)).ToBrep().CapPlanarHoles(RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
+            Brep obliqueBrep2 = obliqueBrep1.DuplicateBrep();
+            obliqueBrep2.Transform(Transform.Mirror(mirrorPlane));
+
+            List<Brep> separatedSteps = CreateSeparatedSteps();
+
+            Flights.Add(obliqueBrep1, new GH_Path(0));
+            Flights.Add(obliqueBrep2, new GH_Path(0));
+            Flights.AddRange(separatedSteps, new GH_Path(1));
+        }
+
+        //创建梯段的辅助方法
+
+        //创建阶梯式梯段侧边截面线
         protected virtual Curve CreateFlightSideCurve()
         {
             List<Point3d> stepPts = new List<Point3d>();
@@ -259,8 +311,40 @@ namespace StairComponents.Stair
             Curve flightSideCurve = new Polyline(stepPts).ToNurbsCurve();
             return flightSideCurve;
         }
-        protected virtual void CreateSeparatedSteps()
+
+        //创建斜边式梯段侧边截面线
+        protected virtual Curve CreateObliqueFlightSideCurve()
         {
+            Curve obliqueFlightSideCurve;
+            List<Vector3d> positions = new List<Vector3d>()
+            {
+                new Vector3d(0, 0, 0),
+                new Vector3d(0, 0, StepHeight),
+                new Vector3d(0,StepWidth*(StepCount-1), StepHeight*StepCount),
+                new Vector3d(0, StepWidth*StepCount, StepHeight*StepCount),
+                new Vector3d(0, StepWidth*StepCount, StepHeight*(StepCount-1)),
+                new Vector3d(0,StepWidth,0),
+                new Vector3d(0,0,0),
+            };
+
+            List<Point3d> pts = new List<Point3d>();
+            for (int i = 0; i < positions.Count; i++)
+            {
+                Point3d pt = new Point3d(DatumPt);
+                pt.Transform(Transform.Translation(positions[i]));
+                pts.Add(pt);
+            }
+            obliqueFlightSideCurve = new Polyline(pts).ToPolylineCurve();
+            return obliqueFlightSideCurve;
+        }
+
+        //创建片状式台阶
+        //重构了方法的返回值
+        protected virtual List<Brep> CreateSeparatedSteps()
+        {
+            //一般情况下，lengthOfStep = FlightLength - 2 * SideWidth
+            List<Brep> separatedSteps= new List<Brep>();
+
             for (int i = 0; i < StepCount; i++)
             {
                 Plane basePlane = new Plane(DatumPt, Vector3d.XAxis, Vector3d.YAxis);
@@ -268,11 +352,13 @@ namespace StairComponents.Stair
                 Brep stepBrep = Surface.CreateExtrusion(stepBaseCurve, new Vector3d(0, 0, -StepDepth)).ToBrep().CapPlanarHoles(0.1);
                 stepBrep.Transform(Transform.Translation(SideWidth, 0, StepHeight));
                 stepBrep.Transform(Transform.Translation(0, StepWidth * i, StepHeight * i));
-                Flights.Add(stepBrep,new GH_Path(1));
+                separatedSteps.Add(stepBrep);
             }
+            return separatedSteps;
         }
         #endregion
 
+        //创建休息平台
         protected override void CreateStairLandings()
         {
             Plane basePlane = new Plane(DatumPt, Vector3d.XAxis, Vector3d.YAxis);
@@ -282,6 +368,7 @@ namespace StairComponents.Stair
             StairLandings.Add(stairLanding,new GH_Path(0));
         }
 
+        //创建梯梁
         protected override void CreateStringers()
         {
             Plane basePlane = new Plane(DatumPt, Vector3d.XAxis, Vector3d.YAxis);
@@ -291,6 +378,7 @@ namespace StairComponents.Stair
             Stringers.Add(stringer,new GH_Path(0));
         }
 
+        //创建栏杆
         protected override void CreateHandrails()
         {
             if(HandrailType==HandrailType.Entirety)
@@ -302,20 +390,34 @@ namespace StairComponents.Stair
                 CreateSeparatedHandrail();
             }
         }
-
+        #region New method for creating Handrails
+        //创建整体式栏杆（栏板）
         protected virtual void CreateEntireHandrail()
         {
+            //创建顶部扶手
+            CreateArmrest();
+
             Curve bottomCurve = CreateStepPolyCurve();
             Curve topCurve = CreateHandrailTopCurve();
             bottomCurve = bottomCurve.Trim(CurveEnd.Both, StepWidth / 2);
             topCurve = topCurve.Trim(CurveEnd.Both, StepWidth / 2);
+
+            if (FlightType == FlightType.ObliqueEntirety || FlightType == FlightType.ObliqueSeparateness)
+            {
+                Point3d pt1 = bottomCurve.PointAtStart;
+                Point3d pt2 = bottomCurve.PointAtEnd;
+                Point3d pt3 = bottomCurve.PointAtEnd;
+
+                pt1.Transform(Transform.Translation(0, 0, 0.5*StepHeight));
+                pt2.Transform(Transform.Translation(0, -1 * 0.5 * StepWidth, 0));
+                bottomCurve = new Polyline(new List<Point3d> { pt1, pt2, pt3 }).ToNurbsCurve();
+            }
 
             Point3d topPt1 = topCurve.PointAtStart;
             Point3d topPt2 = topCurve.PointAtEnd;
             Point3d bottomPt1 = bottomCurve.PointAtStart;
             Point3d bottomPt2 = bottomCurve.PointAtEnd;
 
-            //创建整体式栏杆（栏板）
             List<Curve> midSectionCurves = new List<Curve>
             {
                 bottomCurve,
@@ -339,11 +441,10 @@ namespace StairComponents.Stair
             mirrorPlane.Transform(Transform.Translation(StairLandingLength / 2, 0, 0));
             Brep handrail2 = handrail1.DuplicateBrep();
             handrail2.Transform(Transform.Mirror(mirrorPlane));
-
+            //{0;0}中第一个数区分左右：若为0，则为左；若为1，则为右
+            //{0;0}中第二个数区分种类：若为0，则为扶手、整体式栏板、水平构件；若为1，则为栏杆(垂直构件)
             Handrails.Add(handrail1,new GH_Path(0,0));
-            Handrails.Add(handrail2,new GH_Path(0,1));
-
-            CreateArmrest();
+            Handrails.Add(handrail2,new GH_Path(1,0));
         }
 
         //创建杆件式栏杆
@@ -409,6 +510,8 @@ namespace StairComponents.Stair
             handrailMidPipe2.Transform(Transform.Mirror(mirrorPlane));
             handrailBottomPipe2.Transform(Transform.Mirror(mirrorPlane));
 
+            //{0;0}中第一个数区分左右：若为0，则为左；若为1，则为右
+            //{0;0}中第二个数区分种类：若为0，则为扶手、整体式栏板、水平构件；若为1，则为栏杆(垂直构件)
             Handrails.Add(handrailMidPipe1, new GH_Path(0,0));
             Handrails.Add(handrailBottomPipe1,new GH_Path(0,0));
             Handrails.Add(handrailMidPipe2, new GH_Path(1, 0));
@@ -488,6 +591,8 @@ namespace StairComponents.Stair
                 subPipes1.Add(subPipe1);
                 subPipes2.Add(subPipe2);
             }
+            //{0;0}中第一个数区分左右：若为0，则为左；若为1，则为右
+            //{0;0}中第二个数区分种类：若为0，则为扶手、整体式栏板；若为1，则为栏杆
             Handrails.AddRange(subPipes1, new GH_Path(0,1));
             Handrails.AddRange(subPipes2, new GH_Path(1,1));
         }
@@ -524,7 +629,8 @@ namespace StairComponents.Stair
             mirrorPlane.Transform(Transform.Translation(StairLandingLength / 2, 0, 0));
             Brep armrest2 = armrest1.DuplicateBrep();
             armrest2.Transform(Transform.Mirror(mirrorPlane));
-
+            //{0;0}中第一个数区分左右：若为0，则为左；若为1，则为右
+            //{0;0}中第二个数区分种类：若为0，则为扶手、整体式栏板、水平构件；若为1，则为栏杆(垂直构件)
             Handrails.Add(armrest1,new GH_Path(0,0));
             Handrails.Add(armrest2,new GH_Path(1,0));
         }
@@ -581,5 +687,6 @@ namespace StairComponents.Stair
 
             return pipe;
         }
+        #endregion
     }
 }
