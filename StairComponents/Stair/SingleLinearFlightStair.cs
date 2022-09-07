@@ -8,14 +8,14 @@ namespace StairComponents.Stair
 {
     public class SingleLinearFlightStair : Stair, ILinearStair
     {
-        #region Input Parameters Properties
+        #region Input Properties
         //DatumPt
         public Point3d DatumPt { get; set; }
 
         //IStep Properties
         protected int stepCount;
 
-        public int StepCount
+        public int StepCount    //踏步数量
         {
             get
             {
@@ -30,18 +30,18 @@ namespace StairComponents.Stair
             }
             set => stepCount = value;
         }
-        public double StepWidth { get; set; }
-        public double StepHeight { get; set; }
+        public double StepWidth { get; set; }   //踏步宽度
+        public double StepHeight { get; set; }  //踏步高度
 
         //IFlight Properties
-        public double FlightLength { get; set; }
+        public double FlightLength { get; set; }    //梯段长度/面宽
         public FlightType FlightType { get; set; }
 
         //ISeparatedStep Properties
         protected double stepDepth;
         protected double sideWidth;
 
-        public double StepDepth
+        public double StepDepth             //踏步厚度 <= 踏步高度
         {
             get
             {
@@ -52,7 +52,7 @@ namespace StairComponents.Stair
             }
             set => stepDepth = value;
         }
-        public virtual double SideWidth
+        public virtual double SideWidth     //分离式踏步两边梯段厚度
         {
             get
             {
@@ -65,9 +65,9 @@ namespace StairComponents.Stair
         }
 
         //IStairLanding Properties
-        protected double stairLandingLength;
-        protected double stairLandingWidth;
-        protected double stairLangingDepth;
+        protected double stairLandingLength;    //休息平台面宽=梯段面宽
+        protected double stairLandingWidth;     //休息平台进深
+        protected double stairLangingDepth;     //休息平台厚度
 
         public virtual double StairLandingLength
         {
@@ -108,7 +108,7 @@ namespace StairComponents.Stair
         }
 
         //IStringer Properties
-        protected double stringerLength;
+        protected double stringerLength;    //梯梁长度=休息平台面宽=梯段面宽
 
         public virtual double StringerLength
         {
@@ -121,15 +121,15 @@ namespace StairComponents.Stair
             }
             set => stringerLength = value;
         }
-        public double StringerWidth { get; set; }
-        public double StringerHeight { get; set; }
+        public double StringerWidth { get; set; }   //梯梁宽度/进深
+        public double StringerHeight { get; set; }  //梯梁高度
 
         //IHandrail Properties
         protected double handrailMargin;
 
-        public double ArmrestDepth { get => 30; }
-        public double HandrailHeight { get; set; }
-        public double HandrailMargin
+        public double ArmrestDepth { get => 30; }   //扶手厚度
+        public double HandrailHeight { get; set; }  //栏杆高度
+        public double HandrailMargin                //栏杆边距
         {
             get
             {
@@ -148,13 +148,13 @@ namespace StairComponents.Stair
         public HandrailType HandrailType { get; set; }
 
         //ISeparatedHandrail Properties
-        public double HandrailRadius { get; set; }
-        public bool IsCircleHandrail { get; set; }
+        public double HandrailRadius { get; set; }  //栏杆半径/半边长
+        public bool IsCircleHandrail { get; set; }  //是否圆管栏杆
         #endregion
 
-        #region Result Parameters Properties
+        #region Output Properties
         //Number Results
-        public double Height
+        public virtual double Height
         {
             get
             {
@@ -164,6 +164,7 @@ namespace StairComponents.Stair
         //Geometry Results has been implemented in Stair Class
         #endregion
 
+        //构造函数
         public SingleLinearFlightStair
             (
             Point3d datumPt,
@@ -204,6 +205,7 @@ namespace StairComponents.Stair
             IsCircleHandrail = isCircleHandrail;
         }
 
+        #region Implement method for creating Flights
         //创建梯段
         protected override void CreateFlights()
         {
@@ -224,8 +226,9 @@ namespace StairComponents.Stair
                 CreateObliqueSeparateFlight();
             }
         }
+        #endregion
 
-        #region New method for creating flights
+        #region New methods for creating different types of Flights
         //创建整体式梯段
         protected virtual void CreateEntireFlight()
         {
@@ -243,9 +246,12 @@ namespace StairComponents.Stair
 
             List<Brep> separatedSteps = CreateSeparatedSteps();
 
-            Flights.Add(flightBrep1,new GH_Path(0));
-            Flights.Add(flightBrep2,new GH_Path(0));
-            Flights.AddRange(separatedSteps, new GH_Path(1));
+            //本数据分支：{x,y}
+            //x:层数  y:物件类型
+            //y=0:边缘实体  y=1:片状踏步
+            Flights.Add(flightBrep1,new GH_Path(0,0));
+            Flights.Add(flightBrep2,new GH_Path(0,0));
+            Flights.AddRange(separatedSteps, new GH_Path(0,1));
         }
         //创建斜边的整体式梯段
         protected virtual void CreateObliqueEntireFlight()
@@ -280,13 +286,15 @@ namespace StairComponents.Stair
 
             List<Brep> separatedSteps = CreateSeparatedSteps();
 
-            Flights.Add(obliqueBrep1, new GH_Path(0));
-            Flights.Add(obliqueBrep2, new GH_Path(0));
-            Flights.AddRange(separatedSteps, new GH_Path(1));
+            //本数据分支：{x,y}
+            //x:层数  y:物件类型
+            //y=0:边缘实体  y=1:片状踏步
+            Flights.Add(obliqueBrep1, new GH_Path(0, 0));
+            Flights.Add(obliqueBrep2, new GH_Path(0, 0));
+            Flights.AddRange(separatedSteps, new GH_Path(0, 1));
         }
 
-        //创建梯段的辅助方法
-
+            #region 创建梯段的辅助方法
         //创建阶梯式梯段侧边截面线
         protected virtual Curve CreateFlightSideCurve()
         {
@@ -357,7 +365,9 @@ namespace StairComponents.Stair
             return separatedSteps;
         }
         #endregion
+        #endregion
 
+        #region Implement method for creating StairLandings
         //创建休息平台
         protected override void CreateStairLandings()
         {
@@ -367,7 +377,9 @@ namespace StairComponents.Stair
             Brep stairLanding = Surface.CreateExtrusion(baseCurve, new Vector3d(0, 0, -1*StairLandingDepth)).ToBrep().CapPlanarHoles(RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
             StairLandings.Add(stairLanding,new GH_Path(0));
         }
+        #endregion
 
+        #region Implement method for creating Stringers
         //创建梯梁
         protected override void CreateStringers()
         {
@@ -377,7 +389,9 @@ namespace StairComponents.Stair
             Brep stringer = Surface.CreateExtrusion(baseCurve, new Vector3d(0, 0, -1 * StringerHeight)).ToBrep().CapPlanarHoles(RhinoDoc.ActiveDoc.ModelAbsoluteTolerance);
             Stringers.Add(stringer,new GH_Path(0));
         }
+        #endregion
 
+        #region Implement method for creating Handrails
         //创建栏杆
         protected override void CreateHandrails()
         {
@@ -390,7 +404,9 @@ namespace StairComponents.Stair
                 CreateSeparatedHandrail();
             }
         }
-        #region New method for creating Handrails
+        #endregion
+
+        #region New method for creating different types of Handrails
         //创建整体式栏杆（栏板）
         protected virtual void CreateEntireHandrail()
         {
@@ -497,8 +513,8 @@ namespace StairComponents.Stair
             handrailMidCurve = handrailMidCurve.Trim(CurveEnd.Both, StepWidth / 2);
             handrailBottomCurve = handrailBottomCurve.Trim(CurveEnd.Both, StepWidth / 2);
 
-            Brep handrailMidPipe1 = CreateCirclePipeOrNot(handrailMidCurve, radiusOfHorizontalPipe, IsCircleHandrail);
-            Brep handrailBottomPipe1 = CreateCirclePipeOrNot(handrailBottomCurve, radiusOfHorizontalPipe, IsCircleHandrail);
+            Brep handrailMidPipe1 = CreateCirclePipeOrNot(handrailMidCurve, radiusOfHorizontalPipe);
+            Brep handrailBottomPipe1 = CreateCirclePipeOrNot(handrailBottomCurve, radiusOfHorizontalPipe);
 
             handrailMidPipe1.Transform(Transform.Translation(HandrailRadius, 0, 0));
             handrailMidPipe1.Transform(Transform.Translation(HandrailMargin, 0, 0));
@@ -532,7 +548,7 @@ namespace StairComponents.Stair
                 mainPipeCurve = mainPipeCurve.Extend(CurveEnd.End, ArmrestDepth / 2, CurveExtensionStyle.Line);
                 mainPipeCurves.Add(mainPipeCurve);
 
-                Brep mainPipe1 = CreateCirclePipeOrNot(mainPipeCurve, HandrailRadius, IsCircleHandrail);
+                Brep mainPipe1 = CreateCirclePipeOrNot(mainPipeCurve, HandrailRadius);
 
                 //消除半径影响，将栏杆默认紧贴楼梯梯段边缘
                 mainPipe1.Transform(Transform.Translation(HandrailRadius, 0, 0));
@@ -580,7 +596,7 @@ namespace StairComponents.Stair
             }
             for (int k = 0; k < subPipeCurves.Count; k++)
             {
-                Brep subPipe1 = CreateCirclePipeOrNot(subPipeCurves[k], subPipeRadius, IsCircleHandrail);
+                Brep subPipe1 = CreateCirclePipeOrNot(subPipeCurves[k], subPipeRadius);
 
                 subPipe1.Transform(Transform.Translation(HandrailRadius, 0, 0));
                 subPipe1.Transform(Transform.Translation(HandrailMargin, 0, 0));
@@ -635,7 +651,7 @@ namespace StairComponents.Stair
             Handrails.Add(armrest2,new GH_Path(1,0));
         }
 
-        //辅助方法
+            #region 创建栏杆的辅助方法
         //创建底部沿踏步的折线曲线
         protected virtual Curve CreateStepPolyCurve()
         {
@@ -670,11 +686,12 @@ namespace StairComponents.Stair
             return topCurve;
         }
 
-        protected virtual Brep CreateCirclePipeOrNot(Curve rail,double radius, bool isCircle)
+        //创建 圆/方的杆件
+        protected virtual Brep CreateCirclePipeOrNot(Curve rail,double radius)
         {
             Brep pipe;
 
-            if(isCircle==true)
+            if(IsCircleHandrail==true)
             {
                 pipe= Brep.CreatePipe(rail, radius, true, PipeCapMode.Flat, true, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance, RhinoDoc.ActiveDoc.ModelAngleToleranceRadians)[0];
             }
@@ -687,6 +704,7 @@ namespace StairComponents.Stair
 
             return pipe;
         }
+            #endregion
         #endregion
     }
 }

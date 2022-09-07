@@ -2,15 +2,15 @@
 using System;
 using System.Drawing;
 
-namespace GhSingleStraightFlightStair
+namespace GhSingleLinearFlightStair
 {
-    public class GhSingleStraightFlightStairInfo : GH_AssemblyInfo
+    public class KevinShopInfo : GH_AssemblyInfo
     {
         public override string Name
         {
             get
             {
-                return "GhSingleStraightFlightStair";
+                return "KevinShop";
             }
         }
         public override Bitmap Icon
@@ -42,7 +42,7 @@ namespace GhSingleStraightFlightStair
             get
             {
                 //Return a string identifying you or your company.
-                return "";
+                return "雨泪";
             }
         }
         public override string AuthorContact
@@ -50,7 +50,7 @@ namespace GhSingleStraightFlightStair
             get
             {
                 //Return a string representing your preferred contact details.
-                return "";
+                return "vx:x2818897318；qq:2818897318；bili:雨泪落林泣丶";
             }
         }
     }

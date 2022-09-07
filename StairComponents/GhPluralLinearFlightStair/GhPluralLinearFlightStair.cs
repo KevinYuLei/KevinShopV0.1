@@ -1,30 +1,24 @@
-﻿using Grasshopper.Kernel;
-using Rhino.Geometry;
-using Rhino;
-using System;
+﻿using System;
 using System.Collections.Generic;
+
+using Grasshopper.Kernel;
+using Rhino.Geometry;
 using StairComponents.Stair;
 
-// In order to load the result of this wizard, you will also need to
-// add the output bin/ folder of this project to the list of loaded
-// folder in Grasshopper.
-// You can use the _GrasshopperDeveloperSettings Rhino command for that.
-
-namespace GhSingleStraightFlightStair
+namespace StairComponents.GhPluralLinearFlightStair
 {
-    public class GhSingleStraightFlightStairComponent : GH_Component
+    public class GhPluralLinearFlightStair : GH_Component
     {
         /// <summary>
-        /// Each implementation of GH_Component must provide a public 
-        /// constructor without any arguments.
-        /// Category represents the Tab in which the component will appear, 
-        /// Subcategory the panel. If you use non-existing tab or panel names, 
-        /// new tabs/panels will automatically be created.
+        /// Initializes a new instance of the GhPluralLinearFlightStair class.
         /// </summary>
-        public GhSingleStraightFlightStairComponent()
-          : base("SingleStraightFlightStair", "单跑直行楼梯",
-              "Create a single straight flight stair",
-              "KevinShop", "Stair")
+        public GhPluralLinearFlightStair()
+          : base(
+                "PluralLinearFlightStair", 
+                "多跑直行楼梯",
+                "Create a plural linear flights stair",
+                "KevinShop", 
+                "Stair")
         {
         }
 
@@ -70,6 +64,10 @@ namespace GhSingleStraightFlightStair
 
             pManager.AddNumberParameter("HandrailRadius", "栏杆半径/半边长", "The radius/half-length of handrail", GH_ParamAccess.item, 25);
             pManager.AddBooleanParameter("IsCircleHandrail", "是否圆管栏杆", "Whether to create circle handrails or not", GH_ParamAccess.item, true);
+
+            pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item, "Split row");
+
+            pManager.AddIntegerParameter("FloorCount", "层数/跑数", "The count of floors of the stair, and this count should be not less than 2", GH_ParamAccess.item, 2);
         }
 
         /// <summary>
@@ -78,24 +76,25 @@ namespace GhSingleStraightFlightStair
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             //index = 0
-            pManager.AddNumberParameter("Height", "高度", "Height", GH_ParamAccess.item);
-            //index = 1
-            pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item);
-            //index = 2
             pManager.AddBrepParameter("Flights", "梯段", "Flights", GH_ParamAccess.tree);
-            //index = 3
+            //index = 1
             pManager.AddBrepParameter("StairLandings", "休息平台", "StairLandings", GH_ParamAccess.tree);
-            //index = 4
+            //index = 2
             pManager.AddBrepParameter("Stingers", "梯梁", "Stingers", GH_ParamAccess.tree);
-            //index = 5
+            //index = 3
             pManager.AddBrepParameter("Handrails", "栏杆", "Handrails", GH_ParamAccess.tree);
+            //index = 4
+            pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item);
+            //index = 5
+            pManager.AddNumberParameter("TotalHeight", "总高", "Total hight", GH_ParamAccess.item);
+            //index = 6
+            pManager.AddNumberParameter("FloorHeight", "层高", "Floor height", GH_ParamAccess.item);
         }
 
         /// <summary>
         /// This is the method that actually does the work.
         /// </summary>
-        /// <param name="DA">The DA object can be used to retrieve data from input parameters and 
-        /// to store data in output parameters.</param>
+        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             //Create arguments
@@ -124,6 +123,8 @@ namespace GhSingleStraightFlightStair
 
             double handrailRadius = double.NaN;
             bool isCircleHandrail = true;
+            //new input
+            int floorCount = int.MinValue;
 
             //Initialize arguments
             DA.GetData("DatumPt", ref datumPt);
@@ -153,61 +154,55 @@ namespace GhSingleStraightFlightStair
             //将int类型转换为 栏杆 对应的枚举类型
             int countOfHandrailType = 2;
             handrailTypeInt = handrailTypeInt % countOfHandrailType;
-            handrailType= (HandrailType)handrailTypeInt;
-
+            handrailType = (HandrailType)handrailTypeInt;
 
             DA.GetData("HandrailRadius", ref handrailRadius);
             DA.GetData("IsCircleHandrail", ref isCircleHandrail);
 
-            SingleLinearFlightStair singleLinearFlightStair = new SingleLinearFlightStair
+            DA.GetData("FloorCount", ref floorCount);
+
+            PluralLinearFlightStair pluralLinearFlightStair = new PluralLinearFlightStair
                 (
                 datumPt,
-                stepCount, stepWidth, stepHeight, 
+                stepCount, stepWidth, stepHeight,
                 flightLength, flightType,
                 stepDepth, sideWidth,
                 stairLandingWidth,
-                 stringerWidth, stringerHeight,
-                handrailHeight, handrailMargin,handrailType,
-                handrailRadius, isCircleHandrail
+                stringerWidth, stringerHeight,
+                handrailHeight, handrailMargin, handrailType,
+                handrailRadius, isCircleHandrail,
+                floorCount
                 );
-            singleLinearFlightStair.CreateStair();
+            pluralLinearFlightStair.CreateStair();
 
-            DA.SetData("Height", singleLinearFlightStair.Height);
-            DA.SetDataTree(2, singleLinearFlightStair.Flights);
-            DA.SetDataTree(3, singleLinearFlightStair.StairLandings);
-            DA.SetDataTree(4, singleLinearFlightStair.Stringers);
-            DA.SetDataTree(5, singleLinearFlightStair.Handrails);
+            DA.SetDataTree(0, pluralLinearFlightStair.Flights);
+            DA.SetDataTree(1, pluralLinearFlightStair.StairLandings);
+            DA.SetDataTree(2, pluralLinearFlightStair.Stringers);
+            DA.SetDataTree(3, pluralLinearFlightStair.Handrails);
+            DA.SetData("TotalHeight", pluralLinearFlightStair.Height);
+            DA.SetData("FloorHeight", pluralLinearFlightStair.FloorHeight);
         }
 
         /// <summary>
-        /// Provides an Icon for every component that will be visible in the User Interface.
-        /// Icons need to be 24x24 pixels.
+        /// Provides an Icon for the component.
         /// </summary>
         protected override System.Drawing.Bitmap Icon
         {
             get
             {
-                // You can add image files to your project resources and access them like this:
-                //return Resources.IconForThisComponent;
+                //You can add image files to your project resources and access them like this:
+                // return Resources.IconForThisComponent;
                 return null;
             }
         }
 
         /// <summary>
-        /// Each component must have a unique Guid to identify it. 
-        /// It is vital this Guid doesn't change otherwise old ghx files 
-        /// that use the old ID will partially fail during loading.
+        /// Gets the unique ID for this component. Do not change this ID after release.
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("8a0184b2-f83f-4cd0-8973-3617dc9d7928"); }
+            get { return new Guid("6BB38F1B-8FA0-4F5D-A7C6-6744D0D5DEBF"); }
         }
-        public override GH_Exposure Exposure
-        {
-            get
-            {
-                return GH_Exposure.primary;
-            }
-        }
+
     }
 }
