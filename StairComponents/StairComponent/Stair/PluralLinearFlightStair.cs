@@ -224,7 +224,69 @@ namespace StairComponents.Stair
         #endregion
 
         #region Override methods for creating different types of Handrails
+        //重写 创建底部沿踏步的折线曲线
+        protected override Curve CreateStepPolyCurve()
+        {
+            List<Point3d> stepPts = new List<Point3d>();
+            for (int i = 0; i < FloorCount; i++)
+            {
+                double yDistance = (StepWidth * StepCount + StairLandingWidth) * i;
+                double zDistance = (StepHeight * StepCount) * i;
+                for (int j = 0; j < StepCount; j++)
+                {
+                    Point3d pt1 = new Point3d(DatumPt);
+                    Point3d pt2 = new Point3d(DatumPt);
+                    pt1.Transform(Transform.Translation(0, StepWidth * j + yDistance, StepHeight * (j + 1) + zDistance));
+                    pt2.Transform(Transform.Translation(0, StepWidth * (j + 1) + yDistance, StepHeight * (j + 1) + zDistance));
+                    stepPts.Add(pt1);
+                    stepPts.Add(pt2);
+                }
+                if (i != FloorCount - 1)
+                {
+                    Point3d lastPt = new Point3d(DatumPt);
+                    lastPt.Transform(Transform.Translation(0, (StepWidth * StepCount + StairLandingWidth) * (i + 1), StepHeight * StepCount * (i + 1)));
+                    stepPts.Add(lastPt);
+                }
+            }
 
+            Curve flightSidePolyCurve = new Polyline(stepPts).ToNurbsCurve();
+            return flightSidePolyCurve;
+        }
+
+        //重写 创建顶部有长倾斜段的折线曲线
+        protected override Curve CreateHandrailTopCurve()
+        {
+            List<Point3d> topCrvPts=new List<Point3d>();
+            for (int i = 0; i < FloorCount; i++)
+            {
+                double yDistance = (StepWidth * StepCount + StairLandingWidth) * i;
+                double zDistance = (StepHeight * StepCount) * i;
+                Point3d topPt1 = new Point3d(DatumPt);
+                Point3d topPt2 = new Point3d(DatumPt);
+                Point3d topPt3 = new Point3d(DatumPt);
+                Point3d topPt4 = new Point3d(DatumPt);
+
+                topPt1.Transform(Transform.Translation(0, 0 + yDistance, HandrailHeight + 2 * StepHeight + zDistance));
+                topPt2.Transform(Transform.Translation(0, StepWidth + yDistance, HandrailHeight + 2 * StepHeight + zDistance));
+                topPt3.Transform(Transform.Translation(0, StepWidth * (StepCount - 1) + yDistance, StepHeight * StepCount + HandrailHeight + zDistance));
+                topPt4.Transform(Transform.Translation(0, StepWidth * StepCount + yDistance, StepHeight * StepCount + HandrailHeight + zDistance));
+
+                topCrvPts.Add(topPt1);
+                topCrvPts.Add(topPt2);
+                topCrvPts.Add(topPt3);
+                topCrvPts.Add(topPt4);
+                if (i != FloorCount - 1)
+                {
+                    Point3d lastPt = new Point3d(topPt4);
+                    lastPt.Transform(Transform.Translation(0, StairLandingWidth, 0));
+                    topCrvPts.Add(lastPt);
+                }
+            }
+            
+
+            Curve topCurve = new Polyline(topCrvPts).ToNurbsCurve();
+            return topCurve;
+        }
         #endregion
     }
 }
