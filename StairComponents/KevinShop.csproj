@@ -8,8 +8,8 @@
     <ProjectGuid>{F189C818-FC23-4499-8F8F-F81F75F2E5F2}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>StairComponents</RootNamespace>
-    <AssemblyName>StairComponents</AssemblyName>
+    <RootNamespace>KevinShop</RootNamespace>
+    <AssemblyName>KevinShop</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <IsWebBootstrapper>false</IsWebBootstrapper>
@@ -84,7 +84,12 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="Resources\SingleWindow.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\SingleLinearFlightStair.bmp" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

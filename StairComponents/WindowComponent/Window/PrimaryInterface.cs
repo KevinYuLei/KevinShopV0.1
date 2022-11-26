@@ -29,4 +29,20 @@ namespace WindowComponent.Window
 
         void CreateWindow();
     }
+
+    internal interface IWindowPosition
+    {
+        double WallDepth { get; set; }
+
+        bool IsDepthFlip { get; set; }
+        bool IsWidthFlip { get; set; }
+
+        void PositionWindow();
+    }
+
+    internal interface IWindowRotation
+    {
+        double Angle { get; set; }
+        void RotateWindow();
+    }
 }

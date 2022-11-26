@@ -32,6 +32,16 @@ namespace WindowComponent.GhSingleWindow
             pManager.AddNumberParameter("FrameDepth", "窗框厚度", "The depth of the window frame", GH_ParamAccess.item, 30);
             pManager.AddNumberParameter("FrameMargin", "窗框边距", "The margin of the window frame", GH_ParamAccess.item, 60);
             pManager.AddNumberParameter("GlassDepth", "玻璃厚度", "The depth of glass, which must be less than FrameDepth", GH_ParamAccess.item, 10);
+
+            pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item, "Split row");
+
+            pManager.AddNumberParameter("WallDepth", "墙厚", "The depth of the wall", GH_ParamAccess.item, 240);
+            pManager.AddBooleanParameter("IsDepthFlip", "内外翻转", "Flip along depth", GH_ParamAccess.item, false);
+            pManager.AddBooleanParameter("IsWidthFlip", "沿窗宽翻转", "Flip along window width", GH_ParamAccess.item, false);
+
+            pManager.AddTextParameter("-----------", "-----------", "Split row", GH_ParamAccess.item, "Split row");
+
+            pManager.AddAngleParameter("Angle", "旋转角度", "The window ratation angle (0-360, not radians)", GH_ParamAccess.item, 0);
         }
 
         /// <summary>
@@ -58,6 +68,12 @@ namespace WindowComponent.GhSingleWindow
             double frameMargin = double.NaN;
             double glassDepth = double.NaN;
 
+            double wallDepth= double.NaN;
+            bool isDepthFlip= false;
+            bool isWidthFlip= false;
+
+            double angle = double.NaN;
+
             DA.GetData("DatumPt", ref datumPt);
             DA.GetData("WindowWidth", ref windowWidth);
             DA.GetData("WindowHeight", ref windowHeight);
@@ -65,10 +81,19 @@ namespace WindowComponent.GhSingleWindow
             DA.GetData("FrameMargin", ref frameMargin);
             DA.GetData("GlassDepth", ref glassDepth);
 
+            DA.GetData("WallDepth", ref wallDepth);
+            DA.GetData("IsDepthFlip", ref isDepthFlip);
+            DA.GetData("IsWidthFlip", ref isWidthFlip);
+
+            DA.GetData("Angle", ref angle);
+
             SingleWindow singleWindow = new SingleWindow
                 (
                 datumPt, windowWidth, windowHeight,
-                frameDepth, frameMargin, glassDepth);
+                frameDepth, frameMargin, glassDepth,
+                wallDepth, isDepthFlip, isWidthFlip,
+                angle
+                );
             singleWindow.CreateWindow();
 
             DA.SetDataTree(0, singleWindow.WindowFrames);
@@ -84,7 +109,7 @@ namespace WindowComponent.GhSingleWindow
             {
                 //You can add image files to your project resources and access them like this:
                 // return Resources.IconForThisComponent;
-                return null;
+                return KevinShop.Properties.Resources.SingleWindow;
             }
         }
 
